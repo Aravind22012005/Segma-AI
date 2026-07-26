@@ -4,7 +4,7 @@ An agent-driven system for retail banking that parses a natural-language
 query, runs the right deterministic analytics pipeline (pandas/scikit-learn —
 never an LLM doing math), and explains the result in plain language. Built
 for the "Customer Segmentation & Personalization Agent for Retail Banking"
-hackathon problem statement.
+hackathon problem statement. [Demo Video](https://drive.google.com/file/d/1_AA36nqlI1WR7By1dMQ-YDvYgJvSZMwU/view?usp=sharing)
 
 ## Documentation & Demo
 
@@ -61,15 +61,7 @@ flowchart TB
     API --> UI --> USER
 ```
 
-## The story so far
-
-Start with what SegmaAI actually does end to end — six tools behind one
-conversational interface, each answering a different kind of question a
-retail-banking stakeholder would ask. Then, two real gaps that stood
-between "has all the pieces" and "reliably usable" — and the safety net
-built to prove they stay fixed.
-
-### 0. What SegmaAI actually does
+### What SegmaAI actually does
 
 **Segmentation — two ways to slice the customer base.** Rule-based tiering
 sorts customers into Priority/Regular/Dormant using an explicit, auditable
