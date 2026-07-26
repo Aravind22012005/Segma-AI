@@ -6,14 +6,51 @@ never an LLM doing math), and explains the result in plain language. Built
 for the "Customer Segmentation & Personalization Agent for Retail Banking"
 hackathon problem statement.
 
-```
-Customer.csv   ─┐
-Transactions.csv├─► Feature Engine ─► Unified Customer View ─┬─► EDA Tool
-Products.csv   ─┘                                            ├─► Segmentation Tool (rule + ML)
-                                                               ├─► Explainability Tool
-                                                               └─► Recommendation Tool
-                                                                        │
-User query ─► Planner (LLM or offline rules) ─► Executor (above tools) ─► Explainer ─► Answer
+```mermaid
+flowchart TB
+    subgraph DATA["Data Layer"]
+        direction LR
+        CSV["customers.csv · transactions.csv · products.csv"]
+        UCI["UCI Bank Marketing dataset<br/>(real data, calibration source)"]
+    end
+
+    FE["Feature Engine<br/><code>features.py</code>"]
+    UCV[("Unified Customer View<br/>one row per customer")]
+
+    CSV --> FE
+    UCI -. "calibrates synthetic fields" .-> FE
+    FE --> UCV
+
+    subgraph TOOLS["Deterministic Tools — pandas / scikit-learn, never an LLM doing math"]
+        direction LR
+        SEG["Segmentation Tool<br/>rule-based tiering + KMeans"]
+        EXPL["Explainability Tool<br/>rule thresholds / cluster deviation"]
+        REC["Recommendation Tool<br/>cross-sell · conversion candidates"]
+        EDA["EDA Tool<br/>missing values · distributions · correlations"]
+    end
+
+    UCV --> SEG & EXPL & REC & EDA
+
+    subgraph AGENT["Agent Pipeline — backend/agent/"]
+        direction LR
+        PL["Planner<br/>LLM (Gemini / OpenAI / Claude)<br/>or offline regex fallback"]
+        EX["Executor<br/>dispatches intent, holds session state"]
+        XP["Explainer<br/>LLM or templated prose"]
+        PL -- "structured intent + params" --> EX
+        EX -- "tool result JSON" --> XP
+    end
+
+    EX -- "dispatch" --> SEG & EXPL & REC & EDA
+    SEG & EXPL & REC & EDA -. "result" .-> EX
+
+    API["FastAPI Backend<br/><code>/api/chat</code> · <code>/api/segments</code> · <code>/api/customer</code> ..."]
+    UI["Streamlit Frontend<br/>Chat + EDA / Segments / Lookup / Personas"]
+    USER(["User"])
+
+    API --> PL
+    XP -- "plain-language answer" --> API
+    USER -- "natural-language query" --> UI --> API
+    API --> UI --> USER
 ```
 
 ## The story so far
