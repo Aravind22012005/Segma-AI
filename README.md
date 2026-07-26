@@ -4,7 +4,7 @@ An agent-driven system for retail banking that parses a natural-language
 query, runs the right deterministic analytics pipeline (pandas/scikit-learn —
 never an LLM doing math), and explains the result in plain language. Built
 for the "Customer Segmentation & Personalization Agent for Retail Banking"
-hackathon problem statement.
+hackathon problem statement. [Demo Video](https://drive.google.com/file/d/1_AA36nqlI1WR7By1dMQ-YDvYgJvSZMwU/view?usp=sharing)
 
 ```mermaid
 flowchart TB
