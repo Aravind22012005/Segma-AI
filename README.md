@@ -53,14 +53,6 @@ flowchart TB
     API --> UI --> USER
 ```
 
-## The story so far
-
-Start with what SegmaAI actually does end to end — six tools behind one
-conversational interface, each answering a different kind of question a
-retail-banking stakeholder would ask. Then, two real gaps that stood
-between "has all the pieces" and "reliably usable" — and the safety net
-built to prove they stay fixed.
-
 ### 0. What SegmaAI actually does
 
 **Segmentation — two ways to slice the customer base.** Rule-based tiering
