@@ -24,7 +24,7 @@ INTENTS = [
     "segment_customers", "explain_segment_basis", "aggregate_metric",
     "conversion_candidates", "customer_lookup", "recommendation",
     "eda_missing_values", "eda_distribution", "eda_correlation",
-    "eda_overview", "trend_query", "clarify",
+    "eda_overview", "trend_query", "list_customers_by_tier", "clarify",
 ]
 
 COLUMN_SYNONYMS = {
@@ -155,6 +155,37 @@ def parse_query_offline(query: str) -> dict:
                               "compare spending", "over time", "past year"]):
         return {"intent": "trend_query", "params": {}, "needs_clarification": False}
 
+    # 6.5 List customers by tier -- standalone "who/which/show/list ... priority/dormant/regular
+    # customers" requests (e.g. "which customers are marked priority", "show priority customers").
+    # Must come after the more specific triggers above (segmentation, explain-basis,
+    # conversion-candidates, customer-lookup, recommendation, trend) so it doesn't steal their
+    # queries, and before the AGG_WORDS/overview fallthrough below so these phrases don't fall
+    # through to the generic clarify at the end of this function.
+    # Literal "marked"/"in" phrasings don't need the tier word directly
+    # adjacent (it's picked up anywhere in `q` by `_extract_tier` below).
+    list_tier_triggers = [
+        "which customers are marked", "which customers are in",
+        "who is marked", "who are marked",
+    ]
+    # "show/show me/list/who is/who are (the|a|an) <tier> customer(s)" -- tolerate
+    # an optional article and an optional "me" between the trigger verb and the
+    # tier word, since real phrasings like "show me the dormant customers" or
+    # "who are the priority customers" are just as unambiguous as the
+    # article-less forms.
+    list_tier_regex = re.search(
+        r"\b(?:(?:show|list)(?:\s+me)?|who\s+(?:is|are))\s+"
+        r"(?:the|a|an)?\s*(?:priority|regular|dormant)(?:\s+customers?)?\b",
+        q,
+    )
+    standalone_tier_list = re.fullmatch(r"(priority|regular|dormant)\s+customers?", q.strip())
+    if (
+        any(t in q for t in list_tier_triggers) or list_tier_regex or standalone_tier_list
+    ) and not any(k in q for k in AGG_WORDS):
+        tier = _extract_tier(q)
+        if not tier:
+            return _clarify("Which tier would you like to list -- Priority, Regular, or Dormant?")
+        return {"intent": "list_customers_by_tier", "params": {"tier": tier}, "needs_clarification": False}
+
     # 7. EDA
     if "missing" in q or "null" in q or "nan" in q:
         return {"intent": "eda_missing_values", "params": {}, "needs_clarification": False}
@@ -199,7 +230,7 @@ Given a user's natural-language question, output STRICT JSON (no prose, no markd
 {
   "intent": one of ["segment_customers","explain_segment_basis","aggregate_metric","conversion_candidates",
                      "customer_lookup","recommendation","eda_missing_values","eda_distribution",
-                     "eda_correlation","eda_overview","trend_query","clarify"],
+                     "eda_correlation","eda_overview","trend_query","list_customers_by_tier","clarify"],
   "params": { ...intent-specific... },
   "needs_clarification": boolean,
   "clarification_question": string (only if needs_clarification is true)
@@ -214,6 +245,9 @@ Intent param shapes:
 - recommendation: {"tier": "Priority"|"Regular"|"Dormant"|null}
 - eda_distribution: {"column": <column name>}
 - trend_query: {}
+- list_customers_by_tier: {"tier": "Priority"|"Regular"|"Dormant"}
+  Example phrasings: "which customers are marked priority", "show me the dormant customers",
+  "list the priority customers".
 
 Available unified-view columns: Age, Gender, Occupation, AnnualIncome, MaritalStatus, EducationLevel,
 City, CityTier, AccountType, AccountAgeMonths, AvgMonthlyBalance, CreditScore, LoanType, LoanStatus, EMI,

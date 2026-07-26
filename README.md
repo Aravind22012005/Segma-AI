@@ -1,4 +1,4 @@
-# NeoSegment AI — Customer Segmentation & Personalization Agent
+# SegmaAI — Customer Segmentation & Personalization Agent
 
 An agent-driven system for retail banking that parses a natural-language
 query, runs the right deterministic analytics pipeline (pandas/scikit-learn —

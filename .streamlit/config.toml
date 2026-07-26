@@ -1,0 +1,15 @@
+# Pin Streamlit's own theme engine to light, matching frontend/theme.py's
+# "ledger paper" palette. Without this, native chrome (st.chat_input among
+# it) follows the visiting browser's OS dark-mode preference regardless of
+# the CSS injected in theme.py, producing a dark input on an otherwise
+# light page.
+[theme]
+base = "light"
+primaryColor = "#0a7147"
+backgroundColor = "#f4f4f0"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#101a15"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"

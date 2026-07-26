@@ -17,13 +17,13 @@ import streamlit as st
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import api_client as api
-from theme import CATEGORICAL, CUSTOM_CSS, PLOTLY_TEMPLATE, SURFACE, TIER_COLORS, tier_pill
+from theme import CATEGORICAL, CUSTOM_CSS, PLOTLY_TEMPLATE, SURFACE, TEXT_PRIMARY, TIER_COLORS, tier_pill
 
-st.set_page_config(page_title="NeoSegment AI · Retail Banking Agent", page_icon="🏦", layout="wide")
+st.set_page_config(page_title="SegmaAI · Retail Banking Agent", page_icon="🏦", layout="wide")
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 import plotly.io as pio
-pio.templates["neosegment"] = PLOTLY_TEMPLATE
-pio.templates.default = "neosegment"
+pio.templates["segmaai"] = PLOTLY_TEMPLATE
+pio.templates.default = "segmaai"
 
 QUICK_QUERIES = [
     ("🧩 Segment by balance & frequency", "Segment customers into priority, regular and dormant customers based on balance being maintained and frequency of transactions"),
@@ -54,40 +54,61 @@ def handle_query(query: str):
 
 
 # ---------------------------------------------------------------------------
-# Sidebar
+# Masthead: centered wordmark + pill navigation (replaces the sidebar)
 # ---------------------------------------------------------------------------
-with st.sidebar:
-    st.markdown('<div class="hero-title" style="font-size:1.5rem;">🏦 NeoSegment AI</div>', unsafe_allow_html=True)
-    st.caption("Customer Segmentation & Personalization Agent")
+NAV_ITEMS = [
+    ("chat", "💬", "Chat"),
+    ("eda", "📊", "EDA"),
+    ("segments", "🧩", "Segments"),
+    ("lookup", "👤", "Lookup"),
+    ("personas", "🎯", "Personas"),
+]
 
-    st.session_state.backend_url = st.text_input("Backend URL", st.session_state.backend_url)
+if "page" not in st.session_state:
+    st.session_state.page = "chat"
+
+
+def render_masthead():
+    st.markdown(
+        '<div class="masthead">'
+        '<div class="masthead-mark">Segma<span class="accent">AI</span></div>'
+        '<div class="masthead-rule"></div>'
+        '<div class="masthead-tagline">Ask a question, get a segmented answer.</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    with st.container(key="nav_row"):
+        cols = st.columns(len(NAV_ITEMS))
+        for c, (key, icon, label) in zip(cols, NAV_ITEMS):
+            if st.session_state.page == key:
+                c.markdown(f'<div class="nav-pill-active">{icon} {label}</div>', unsafe_allow_html=True)
+            elif c.button(f"{icon} {label}", key=f"nav_{key}", width="stretch"):
+                st.session_state.page = key
+                st.rerun()
 
     try:
         health = api.health()
         llm_on = health.get("llm_active")
-        pill_cls = "pill-llm" if llm_on else "pill-offline"
-        st.markdown(
-            f'<span class="pill {pill_cls}">{"● " if llm_on else "○ "}Planner: {health.get("planner")}</span>',
-            unsafe_allow_html=True,
-        )
-        st.caption(f"{health.get('n_customers', '?'):,} customers loaded")
+        dot = "●" if llm_on else "○"
+        status = f"{dot} {health.get('planner', 'offline').title()} · {health.get('n_customers', '?'):,} customers"
     except api.APIError:
-        st.error("Backend not reachable. Start it with:\n\n`uvicorn backend.main:app --reload`")
+        status = "○ Backend unreachable"
 
-    st.markdown("---")
-    page = st.radio(
-        "Navigate",
-        ["💬 Agent Chat", "📊 EDA Dashboard", "🧩 Segments Explorer", "👤 Customer Lookup", "🎯 Personas & Recommendations"],
-        label_visibility="collapsed",
-    )
-    st.markdown("---")
-    if st.button("🔄 Reset conversation & segmentation"):
-        api.reset_session(st.session_state.session_id)
-        st.session_state.messages = []
-        st.rerun()
+    _, status_col, settings_col, _ = st.columns([3, 2, 0.6, 3])
+    with status_col:
+        st.markdown(f'<div class="status-strip">{status}</div>', unsafe_allow_html=True)
+    with settings_col:
+        with st.container(key="settings_pop"):
+            with st.popover("⚙"):
+                st.session_state.backend_url = st.text_input("Backend URL", st.session_state.backend_url)
+                if st.button("Reset conversation & segmentation", width="stretch"):
+                    api.reset_session(st.session_state.session_id)
+                    st.session_state.messages = []
+                    st.rerun()
 
-    st.caption("Architecture: LLM Planner (pluggable, offline-capable) → Pandas/Scikit-learn tools → Explainer. "
-               "No LLM ever touches the numbers.")
+
+render_masthead()
 
 
 def kpi_row(items: list[tuple[str, str]]):
@@ -228,7 +249,7 @@ def render_eda_page():
     with c2:
         occ = ov["occupation_distribution"]
         fig = px.pie(names=list(occ.keys()), values=list(occ.values()), hole=0.55, title="Occupation mix")
-        fig.update_traces(marker=dict(colors=CATEGORICAL), textfont_color="white")
+        fig.update_traces(marker=dict(colors=CATEGORICAL), textfont_color=TEXT_PRIMARY)
         fig.update_layout(paper_bgcolor=SURFACE)
         st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
@@ -287,7 +308,7 @@ def render_segments_page():
         fig = px.pie(names=list(counts.keys()), values=list(counts.values()), hole=0.55,
                      title=f"Tier distribution ({seg['method']})")
         fig.update_traces(marker=dict(colors=[TIER_COLORS.get(str(k).split(" ")[0], CATEGORICAL[i % 8])
-                                               for i, k in enumerate(counts.keys())]), textfont_color="white")
+                                               for i, k in enumerate(counts.keys())]), textfont_color=TEXT_PRIMARY)
         fig.update_layout(paper_bgcolor=SURFACE)
         st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     with c2:
@@ -427,10 +448,10 @@ def render_personas_page():
 
 
 PAGES = {
-    "💬 Agent Chat": render_chat_page,
-    "📊 EDA Dashboard": render_eda_page,
-    "🧩 Segments Explorer": render_segments_page,
-    "👤 Customer Lookup": render_customer_page,
-    "🎯 Personas & Recommendations": render_personas_page,
+    "chat": render_chat_page,
+    "eda": render_eda_page,
+    "segments": render_segments_page,
+    "lookup": render_customer_page,
+    "personas": render_personas_page,
 }
-PAGES[page]()
+PAGES[st.session_state.page]()

@@ -78,6 +78,9 @@ def execute(plan: dict, session: AgentSession) -> dict:
     if intent == "trend_query":
         return _trend_query(session)
 
+    if intent == "list_customers_by_tier":
+        return _list_customers_by_tier(params, session)
+
     return {"intent": "clarify", "result": {"question": "I couldn't map that to an action. Could you rephrase?"}}
 
 
@@ -146,7 +149,7 @@ def _run_segmentation(params: dict, session: AgentSession) -> dict:
 
 def _explain_basis(params: dict, session: AgentSession) -> dict:
     if not session.has_segmentation():
-        return {"intent": "clarify", "result": {"question": "No segmentation has been run yet -- ask me to segment customers first."}}
+        _run_segmentation({"method": "rule"}, session)
 
     if session.method == "rule":
         return {"intent": "explain_segment_basis",
@@ -173,14 +176,17 @@ def _explain_basis(params: dict, session: AgentSession) -> dict:
 def _aggregate_metric(params: dict, session: AgentSession) -> dict:
     group_by = params.get("group_by", "Tier")
     if group_by == "Tier" and not session.has_segmentation():
-        return {"intent": "clarify", "result": {"question": "No segmentation exists yet -- ask me to segment customers first, then I can break this down by tier."}}
+        _run_segmentation({"method": "rule"}, session)
     result = eda_tool.groupby_metric(session.view, group_by, params["metric"], params.get("agg", "mean"))
     return {"intent": "aggregate_metric", "result": result}
 
 
 def _conversion_candidates(session: AgentSession) -> dict:
+    # Conversion-candidate logic is specifically rule-tier-based (Priority/Regular/
+    # Dormant), so auto-run rule-based tiering if we've never segmented, or if the
+    # only segmentation so far was an ML clustering run.
     if not session.has_segmentation() or session.method != "rule":
-        return {"intent": "clarify", "result": {"question": "Run rule-based segmentation (Priority/Regular/Dormant) first so I know who's currently 'Regular'."}}
+        _run_segmentation({"method": "rule"}, session)
     result = recommendation_tool.conversion_candidates(session.view, session.rules_used)
     return {"intent": "conversion_candidates", "result": result}
 
@@ -203,7 +209,7 @@ def _customer_lookup(params: dict, session: AgentSession) -> dict:
 
 def _recommendation(params: dict, session: AgentSession) -> dict:
     if not session.has_segmentation():
-        return {"intent": "clarify", "result": {"question": "Run segmentation first so I know which tier each customer is in."}}
+        _run_segmentation({"method": "rule"}, session)
     view = session.view
     tier = params.get("tier")
     if tier:
@@ -212,6 +218,29 @@ def _recommendation(params: dict, session: AgentSession) -> dict:
             return {"intent": "clarify", "result": {"question": f"No customers found in tier '{tier}'."}}
     result = recommendation_tool.generate_recommendations(view)
     return {"intent": "recommendation", "result": result}
+
+
+def _list_customers_by_tier(params: dict, session: AgentSession) -> dict:
+    # Tier filtering is rule-tier-specific, so auto-run rule-based tiering if
+    # we've never segmented, or if the only segmentation so far was ML clustering,
+    # matching the precedent set by `_conversion_candidates`.
+    if not session.has_segmentation() or session.method != "rule":
+        _run_segmentation({"method": "rule"}, session)
+
+    tier = params["tier"]
+    view = session.view[session.view["Tier"].str.startswith(tier, na=False)]
+    if view.empty:
+        return {"intent": "clarify", "result": {"question": f"No customers found in tier '{tier}'."}}
+
+    return {
+        "intent": "list_customers_by_tier",
+        "result": to_jsonable({
+            "tier": tier,
+            "count": len(view),
+            "sample": view[["CustomerID", "AvgMonthlyBalance", "MonthlyTxnFrequency", "Tier"]]
+                .head(10).to_dict(orient="records"),
+        }),
+    }
 
 
 def _trend_query(session: AgentSession) -> dict:
