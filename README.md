@@ -6,6 +6,14 @@ never an LLM doing math), and explains the result in plain language. Built
 for the "Customer Segmentation & Personalization Agent for Retail Banking"
 hackathon problem statement.
 
+## Documentation & Demo
+
+- 📄 **[Full project documentation](SegmaAI_Documentation.pdf)** — a written
+  deep-dive covering the problem, all six core capabilities, system
+  architecture, data provenance, reliability engineering, and tech stack.
+- 🎥 **[Demo video](https://drive.google.com/file/d/1_AA36nqlI1WR7By1dMQ-YDvYgJvSZMwU/view?usp=sharing)**
+  — a short walkthrough of SegmaAI in action.
+
 ```mermaid
 flowchart TB
     subgraph DATA["Data Layer"]
