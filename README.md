@@ -53,7 +53,7 @@ flowchart TB
     API --> UI --> USER
 ```
 
-### 0. What SegmaAI actually does
+### What SegmaAI actually does
 
 **Segmentation — two ways to slice the customer base.** Rule-based tiering
 sorts customers into Priority/Regular/Dormant using an explicit, auditable
